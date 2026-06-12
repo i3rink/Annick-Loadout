@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a7ab0" />
+  <title>Loadout — Annick Group</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ── Tokens ── */
+    :root {
+      --blue-deep:    #1260a0;
+      --blue-mid:     #1a7ab0;
+      --blue-light:   #2290cc;
+      --frost:        rgba(18,96,160,0.72);
+      --frost-hover:  rgba(18,96,160,0.82);
+      --frost-active: rgba(18,96,160,0.88);
+      --frost-border: rgba(255,255,255,0.14);
+      --frost-top:    rgba(255,255,255,0.22);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255,255,255,0.62);
+      --text-muted:   rgba(255,255,255,0.38);
+      --accent:       #38bdf8;
+      --accent-dim:   rgba(56,189,248,0.18);
+      --amber:        #f97316;
+      --amber-dim:    rgba(249,115,22,0.18);
+      --green:        #4ade80;
+      --green-dim:    rgba(74,222,128,0.15);
+      --danger:       #f87171;
+      --danger-dim:   rgba(248,113,113,0.15);
+      --radius:       14px;
+      --radius-sm:    8px;
+      --radius-pill:  999px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.22);
+      --transition:   0.18s ease;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-primary);
+      background: var(--blue-mid);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Pipe overlay canvas ── */
+    #pipe-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.45;
+    }
+
+    /* ── App shell ── */
+    #app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      padding: 20px 20px 0;
+      text-align: center;
+    }
+
+    .app-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: default;
+      user-select: none;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--frost-active);
+      border: 1px solid var(--frost-top);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-text {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      font-weight: 300;
+      color: var(--text-secondary);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: block;
+      text-align: left;
+      margin-top: -2px;
+    }
+
+    /* Version tap target for Easter egg */
+    .app-version {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      cursor: default;
+      user-select: none;
+      display: inline-block;
+    }
+
+    /* ── Main content ── */
+    .app-main {
+      flex: 1;
+      padding: 16px 16px 32px;
+      max-width: 520px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── View nav tabs ── */
+    .view-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-pill);
+      padding: 4px;
+    }
+
+    .view-tab {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .view-tab.active {
+      background: var(--frost-active);
+      color: var(--text-primary);
+      border: 1px solid var(--frost-top);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-top-color: var(--frost-top);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 14px;
+    }
+
+    /* ── Form elements ── */
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.4px;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      outline: none;
+      transition: var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder { color: var(--text-muted); }
+
+    .field input:focus,
+    .field textarea:focus {
+      border-color: var(--accent);
+      background: var(--frost-hover);
+    }
+
+    .field textarea {
+      resize: none;
+      min-height: 72px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--frost-border);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0c2a3a;
+      border-color: var(--accent);
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      border-radius: var(--radius-sm);
+      margin-top: 4px;
+    }
+
+    .btn-primary:active { opacity: 0.85; transform: scale(0.99); }
+
+    .btn-ghost {
+      background: var(--frost);
+      color: var(--text-secondary);
+      font-size: 13px;
+      padding: 8px 14px;
+    }
+
+    .btn-ghost:hover { background: var(--frost-hover); color: var(--text-primary); }
+
+    .btn-amber {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border-color: rgba(249,115,22,0.3);
+    }
+
+    .btn-danger {
+      background: var(--danger-dim);
+      color: var(--danger);
+      border-color: rgba(248,113,113,0.3);
+    }
+
+    .btn-green {
+      background: var(--green-dim);
+      color: var(--green);
+      border-color: rgba(74,222,128,0.3);
+    }
+
+    /* ── Category pill ── */
+    .category-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: var(--accent-dim);
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    /* ── Item picker ── */
+    .item-group {
+      margin-bottom: 18px;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--frost);
+      border: 1px solid transparent;
+      margin-bottom: 6px;
+      transition: var(--transition);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .item-row:hover { background: var(--frost-hover); }
+
+    .item-row.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .item-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1.5px solid var(--frost-border);
+      background: var(--frost);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: var(--transition);
+      font-size: 11px;
+    }
+
+    .item-row.selected .item-check {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0c2a3a;
+    }
+
+    .item-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .item-qty-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .item-qty-wrap input {
+      width: 56px;
+      background: var(--frost-active);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 5px 8px;
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+    }
+
+    .item-unit {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+
+    /* ── Restock dashboard ── */
+    .restock-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      margin-bottom: 6px;
+    }
+
+    .restock-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .restock-numbers {
+      text-align: right;
+    }
+
+    .restock-deficit {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .restock-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    /* ── Submission summary ── */
+    .submission-card {
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+
+    .submission-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .submission-job {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .submission-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .submission-address {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .submission-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .submission-items-list {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--frost-border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .submission-item-tag {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    /* ── Product manager ── */
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      margin-bottom: 6px;
+    }
+
+    .product-row-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .product-row-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* ── Pin screen ── */
+    .pin-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(18,96,160,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .pin-box {
+      background: #1260a0;
+      border: 1px solid var(--frost-top);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .pin-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .pin-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--frost-border);
+      background: transparent;
+      transition: var(--transition);
+    }
+
+    .pin-dot.filled {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .pin-key {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--frost-border);
+      background: var(--frost);
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .pin-key:active { background: var(--frost-active); transform: scale(0.96); }
+
+    .pin-key.del {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .pin-error {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 14px;
+      min-height: 18px;
+    }
+
+    /* ── Add product modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(18,96,160,0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 90;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-box {
+      background: #1260a0;
+      border: 1px solid var(--frost-top);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(15,40,60,0.95);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-pill);
+      padding: 12px 22px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+      z-index: 200;
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Admin tabs ── */
+    .admin-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .admin-tab {
+      flex: 1;
+      padding: 9px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--frost-border);
+      background: var(--frost);
+      color: var(--text-secondary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      letter-spacing: 0.2px;
+    }
+
+    .admin-tab.active {
+      background: var(--frost-active);
+      color: var(--text-primary);
+      border-color: var(--frost-top);
+    }
+
+    /* ── Stat bar ── */
+    .stat-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-chip {
+      flex: 1;
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      font-weight: 300;
+    }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+    /* ── Tetris overlay ── */
+    #tetris-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,30,50,0.96);
+      z-index: 300;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #tetris-overlay.show { display: flex; }
+
+    .tetris-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 340px;
+      padding: 0 10px;
+      margin-bottom: 16px;
+    }
+
+    .tetris-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+    }
+
+    .tetris-score-box {
+      text-align: right;
+    }
+
+    .tetris-score {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .tetris-score-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    #tetris-canvas {
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      image-rendering: pixelated;
+    }
+
+    .tetris-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(2, 60px);
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .t-btn {
+      background: var(--frost-hover);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .t-btn:active { background: var(--frost-active); }
+    .t-btn.t-up { grid-column: 2; grid-row: 1; }
+    .t-btn.t-left { grid-column: 1; grid-row: 2; }
+    .t-btn.t-down { grid-column: 2; grid-row: 2; }
+    .t-btn.t-right { grid-column: 3; grid-row: 2; }
+
+    .tetris-exit {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.4px;
+    }
+
+    .tetris-exit:hover { color: var(--text-secondary); }
+
+    /* ── Section divider ── */
+    .section-gap { margin-bottom: 20px; }
+
+    /* ── Scrollable container ── */
+    .scroll-area {
+      max-height: 60vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .scroll-area::-webkit-scrollbar { width: 4px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--frost-border); border-radius: 2px; }
+
+    @media (max-width: 400px) {
+      .app-main { padding: 12px 12px 28px; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Pipe background canvas -->
+<canvas id="pipe-canvas"></canvas>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Pin overlay -->
+<div class="pin-overlay" id="pin-overlay" style="display:none">
+  <div class="pin-box">
+    <div class="pin-title">Admin Access</div>
+    <div class="pin-sub">Enter your PIN to continue</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" data-pin="1">1</button>
+      <button class="pin-key" data-pin="2">2</button>
+      <button class="pin-key" data-pin="3">3</button>
+      <button class="pin-key" data-pin="4">4</button>
+      <button class="pin-key" data-pin="5">5</button>
+      <button class="pin-key" data-pin="6">6</button>
+      <button class="pin-key" data-pin="7">7</button>
+      <button class="pin-key" data-pin="8">8</button>
+      <button class="pin-key" data-pin="9">9</button>
+      <button class="pin-key del" data-pin="cancel">✕ Cancel</button>
+      <button class="pin-key" data-pin="0">0</button>
+      <button class="pin-key del" data-pin="del">⌫</button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Product Modal -->
+<div class="modal-overlay" id="product-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" id="product-modal-title">Add Product</div>
+    <div class="field">
+      <label>Product Name</label>
+      <input type="text" id="pm-name" placeholder="e.g. Sheet Plywood 18mm" />
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <input type="text" id="pm-category" placeholder="e.g. Sheet Materials" />
+    </div>
+    <div class="field">
+      <label>Unit</label>
+      <input type="text" id="pm-unit" placeholder="e.g. sheet, length, box" />
+    </div>
+    <div class="field">
+      <label>Par Level (van capacity)</label>
+      <input type="number" id="pm-par" placeholder="e.g. 10" min="1" />
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ghost" style="flex:1" id="pm-cancel">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;margin-top:0" id="pm-save">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tetris Easter Egg -->
+<div id="tetris-overlay">
+  <div class="tetris-header">
+    <div>
+      <div class="tetris-title">🧱 VanTetris</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Pack the van.</div>
+    </div>
+    <div class="tetris-score-box">
+      <div class="tetris-score" id="t-score">0</div>
+      <div class="tetris-score-label">Score</div>
+    </div>
+  </div>
+  <canvas id="tetris-canvas" width="200" height="400"></canvas>
+  <div class="tetris-controls">
+    <button class="t-btn t-up" id="t-up">↑</button>
+    <button class="t-btn t-left" id="t-left">←</button>
+    <button class="t-btn t-down" id="t-down">↓</button>
+    <button class="t-btn t-right" id="t-right">→</button>
+  </div>
+  <div class="tetris-exit" id="tetris-exit">tap to close</div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header class="app-header">
+    <div style="padding-top:16px;padding-bottom:12px">
+      <div class="app-logo" id="logo-tap">
+        <svg width="38" height="44" viewBox="0 0 110 128" xmlns="http://www.w3.org/2000/svg">
+          <!-- Waterdrop shape -->
+          <path d="M55 4 C55 4 8 58 8 84 C8 109 29 124 55 124 C81 124 102 109 102 84 C102 58 55 4 55 4 Z"
+            fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+          <!-- ANNICK text -->
+          <text x="55" y="96" text-anchor="middle"
+            font-family="DM Sans, sans-serif" font-weight="800"
+            font-size="28" fill="white" letter-spacing="-0.5">ANNICK</text>
+        </svg>
+        <div>
+          <span class="logo-text">Loadout</span>
+          <span class="logo-sub">Annick Group</span>
+        </div>
+      </div>
+      <div>
+        <span class="app-version" id="version-tap">v1.0.0</span>
+      </div>
+    </div>
+    <div class="view-tabs" style="max-width:520px;margin:0 auto 0">
+      <button class="view-tab active" data-view="plumber">📋 Job Submit</button>
+      <button class="view-tab" data-view="admin" id="admin-tab">🔒 Admin</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ══ PLUMBER VIEW ══ -->
+    <div id="view-plumber">
+      <div class="card">
+        <div class="card-title">Job Details</div>
+        <div class="field">
+          <label>Job ID</label>
+          <input type="text" id="p-job-id" placeholder="e.g. ANN-2024-147" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Site Address</label>
+          <input type="text" id="p-address" placeholder="12 Main Street, Ayr" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Description of Work</label>
+          <input type="text" id="p-description" placeholder="e.g. Replaced wash hand basin unit" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="p-notes" placeholder="Any additional notes…"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Materials Used</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Tap items you used on this job and enter quantities.</div>
+        <div id="item-picker">
+          <div class="empty"><div class="empty-icon">⏳</div>Loading products…</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="submit-job-btn">Submit Job</button>
+    </div>
+
+    <!-- ══ ADMIN VIEW ══ -->
+    <div id="view-admin" style="display:none">
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-atab="restock">🔧 Restock</button>
+        <button class="admin-tab" data-atab="submissions">📄 Submissions</button>
+        <button class="admin-tab" data-atab="products">📦 Products</button>
+      </div>
+
+      <!-- Restock tab -->
+      <div id="atab-restock">
+        <div class="stat-row" id="admin-stats">
+          <div class="stat-chip"><div class="stat-num" id="stat-jobs">—</div><div class="stat-label">Active Jobs</div></div>
+          <div class="stat-chip"><div class="stat-num" id="stat-items">—</div><div class="stat-label">Items to Restock</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Restock List</div>
+          <div id="restock-list"><div class="empty"><div class="empty-icon">✅</div>Nothing to restock</div></div>
+        </div>
+        <button class="btn btn-green" id="archive-all-btn" style="width:100%;display:none">
+          ✓ Van Restocked — Archive All Jobs
+        </button>
+      </div>
+
+      <!-- Submissions tab -->
+      <div id="atab-submissions" style="display:none">
+        <div class="card">
+          <div class="card-title">Active Submissions</div>
+          <div id="submissions-list"><div class="empty"><div class="empty-icon">📭</div>No submissions yet</div></div>
+        </div>
+      </div>
+
+      <!-- Products tab -->
+      <div id="atab-products" style="display:none">
+        <button class="btn btn-ghost" id="add-product-btn" style="width:100%;margin-bottom:12px">+ Add Product</button>
+        <div class="card">
+          <div class="card-title">Product Master List</div>
+          <div id="products-list"><div class="empty"><div class="empty-icon">⏳</div>Loading…</div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;text-align:center">
+        <button class="btn btn-ghost" id="admin-logout-btn" style="font-size:12px;color:var(--text-muted)">Lock Admin</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ── Config ── */
+  const SUPABASE_URL = 'https://otqqkrqpzqwdgkigocdx.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXFrcnFwenF3ZGdraWdvY2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTIzNjQsImV4cCI6MjA5NjgyODM2NH0.6D-KNkyzyucCtWTBi7fLgg8Wl_vRoE-Z8ynWR45o3Jo';
+  const ADMIN_PIN    = '1234'; // ← Change this
+
+  /* ── Supabase ── */
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ── State ── */
+  let products      = [];
+  let selectedItems = {}; // { product_id: quantity }
+  let adminUnlocked = false;
+  let currentAdminTab = 'restock';
+  let editingProductId = null;
+  let pinBuffer = '';
+  let versionTapCount = 0;
+  let versionTapTimer = null;
+
+  /* ════════════════════════════════
+     PIPE BACKGROUND ANIMATION
+  ════════════════════════════════ */
+  (function initPipes() {
+    const canvas = document.getElementById('pipe-canvas');
+    const ctx    = canvas.getContext('2d');
+    let pipes    = [];
+    let W, H;
+
+    function resize() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function makePipe() {
+      return {
+        x:     Math.random() * W,
+        y:     Math.random() * H,
+        angle: [0, 90, 180, 270][Math.floor(Math.random()*4)],
+        type:  Math.random() > 0.4 ? 'straight' : (Math.random() > 0.5 ? 'elbow' : 'tee'),
+        size:  24 + Math.random() * 20,
+        alpha: 0.02 + Math.random() * 0.05,
+        drift: (Math.random() - 0.5) * 0.15,
+        vx:    (Math.random() - 0.5) * 0.2,
+        vy:    (Math.random() - 0.5) * 0.12,
+      };
+    }
+
+    for (let i = 0; i < 40; i++) pipes.push(makePipe());
+
+    function drawPipe(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle * Math.PI / 180);
+      ctx.strokeStyle = `rgba(255,255,255,${p.alpha})`;
+      ctx.lineWidth   = 2.5;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      const s = p.size;
+
+      if (p.type === 'straight') {
+        ctx.beginPath();
+        ctx.moveTo(-s, 0);
+        ctx.lineTo(s, 0);
+        ctx.stroke();
+        // end caps
+        [[-s,0],[s,0]].forEach(([ex,ey]) => {
+          ctx.beginPath();
+          ctx.arc(ex, ey, 3.5, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
+          ctx.fill();
+        });
+      } else if (p.type === 'elbow') {
+        ctx.beginPath();
+        ctx.moveTo(-s, 0);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(0, s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,${p.alpha * 0.6})`;
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(-s, 0);
+        ctx.lineTo(s, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,${p.alpha * 0.5})`;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, W, H);
+      pipes.forEach(p => {
+        p.angle += p.drift;
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < -60) p.x = W + 60;
+        if (p.x > W+60) p.x = -60;
+        if (p.y < -60) p.y = H + 60;
+        if (p.y > H+60) p.y = -60;
+        drawPipe(p);
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+  })();
+
+  /* ════════════════════════════════
+     TOAST
+  ════════════════════════════════ */
+  function showToast(msg, duration = 2800) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  /* ════════════════════════════════
+     ROUTING
+  ════════════════════════════════ */
+  function showView(view) {
+    document.getElementById('view-plumber').style.display = view === 'plumber' ? '' : 'none';
+    document.getElementById('view-admin').style.display   = view === 'admin'   ? '' : 'none';
+    document.querySelectorAll('.view-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.view === view);
+    });
+  }
+
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const view = tab.dataset.view;
+      if (view === 'admin') {
+        if (!adminUnlocked) { openPin(); return; }
+        showView('admin');
+        loadAdminTab(currentAdminTab);
+      } else {
+        showView('plumber');
+      }
+    });
+  });
+
+  document.querySelectorAll('.admin-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      currentAdminTab = tab.dataset.atab;
+      document.querySelectorAll('.admin-tab').forEach(t => t.classList.toggle('active', t === tab));
+      ['restock','submissions','products'].forEach(id => {
+        document.getElementById(`atab-${id}`).style.display = id === currentAdminTab ? '' : 'none';
+      });
+      loadAdminTab(currentAdminTab);
+    });
+  });
+
+  document.getElementById('admin-logout-btn').addEventListener('click', () => {
+    adminUnlocked = false;
+    showView('plumber');
+    showToast('Admin locked');
+  });
+
+  /* ════════════════════════════════
+     PIN
+  ════════════════════════════════ */
+  function openPin() {
+    pinBuffer = '';
+    updatePinDots();
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-overlay').style.display = 'flex';
+  }
+
+  function closePin() {
+    document.getElementById('pin-overlay').style.display = 'none';
+    pinBuffer = '';
+  }
+
+  function updatePinDots() {
+    for (let i = 0; i < 4; i++) {
+      document.getElementById(`pd${i}`).classList.toggle('filled', i < pinBuffer.length);
+    }
+  }
+
+  document.querySelectorAll('.pin-key').forEach(key => {
+    key.addEventListener('click', () => {
+      const v = key.dataset.pin;
+      if (v === 'cancel') { closePin(); return; }
+      if (v === 'del') { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); return; }
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += v;
+      updatePinDots();
+      if (pinBuffer.length === 4) {
+        setTimeout(() => {
+          if (pinBuffer === ADMIN_PIN) {
+            adminUnlocked = true;
+            closePin();
+            showView('admin');
+            loadAdminTab('restock');
+          } else {
+            document.getElementById('pin-error').textContent = 'Incorrect PIN — try again';
+            pinBuffer = '';
+            updatePinDots();
+          }
+        }, 200);
+      }
+    });
+  });
+
+  /* ════════════════════════════════
+     VERSION TAP EASTER EGG
+  ════════════════════════════════ */
+  document.getElementById('version-tap').addEventListener('click', () => {
+    versionTapCount++;
+    clearTimeout(versionTapTimer);
+    versionTapTimer = setTimeout(() => { versionTapCount = 0; }, 1800);
+    if (versionTapCount >= 7) {
+      versionTapCount = 0;
+      launchTetris();
+    }
+  });
+
+  /* ════════════════════════════════
+     PRODUCTS
+  ════════════════════════════════ */
+  async function loadProducts() {
+    const { data, error } = await sb
+      .from('van_products')
+      .select('*')
+      .eq('active', true)
+      .order('category')
+      .order('name');
+    if (error) { console.error(error); return; }
+    products = data || [];
+    renderItemPicker();
+    renderProductsList();
+  }
+
+  function renderItemPicker() {
+    const el = document.getElementById('item-picker');
+    if (!products.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>No products set up yet</div>';
+      return;
+    }
+    const byCategory = {};
+    products.forEach(p => {
+      if (!byCategory[p.category]) byCategory[p.category] = [];
+      byCategory[p.category].push(p);
+    });
+    el.innerHTML = Object.entries(byCategory).map(([cat, items]) => `
+      <div class="item-group">
+        <div class="category-pill">${esc(cat)}</div>
+        ${items.map(item => `
+          <div class="item-row" data-action="toggle-item" data-id="${item.id}">
+            <div class="item-check" id="chk-${item.id}"></div>
+            <div class="item-name">${esc(item.name)}</div>
+            <div class="item-qty-wrap" id="qty-wrap-${item.id}" style="display:none">
+              <input type="number" class="item-qty-input" id="qty-${item.id}" min="1" value="1"
+                data-action="set-qty" data-id="${item.id}" />
+              <span class="item-unit">${esc(item.unit || '')}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('item-picker').addEventListener('click', e => {
+    const row = e.target.closest('[data-action="toggle-item"]');
+    if (!row) return;
+    const id = row.dataset.id;
+    if (selectedItems[id]) {
+      delete selectedItems[id];
+      row.classList.remove('selected');
+      document.getElementById(`chk-${id}`).textContent = '';
+      document.getElementById(`qty-wrap-${id}`).style.display = 'none';
+    } else {
+      selectedItems[id] = 1;
+      row.classList.add('selected');
+      document.getElementById(`chk-${id}`).textContent = '✓';
+      document.getElementById(`qty-wrap-${id}`).style.display = 'flex';
+      setTimeout(() => document.getElementById(`qty-${id}`)?.focus(), 50);
+    }
+  });
+
+  document.getElementById('item-picker').addEventListener('input', e => {
+    if (e.target.dataset.action === 'set-qty') {
+      const id = e.target.dataset.id;
+      const v  = parseFloat(e.target.value);
+      if (v > 0) selectedItems[id] = v;
+    }
+  });
+
+  /* ════════════════════════════════
+     SUBMIT JOB
+  ════════════════════════════════ */
+  document.getElementById('submit-job-btn').addEventListener('click', async () => {
+    const jobId   = document.getElementById('p-job-id').value.trim();
+    const address = document.getElementById('p-address').value.trim();
+    const desc    = document.getElementById('p-description').value.trim();
+    const notes   = document.getElementById('p-notes').value.trim();
+
+    if (!jobId || !address || !desc) {
+      showToast('Please fill in Job ID, Address and Description');
+      return;
+    }
+    if (!Object.keys(selectedItems).length) {
+      showToast('Select at least one material used');
+      return;
+    }
+
+    const btn = document.getElementById('submit-job-btn');
+    btn.textContent = 'Submitting…';
+    btn.disabled = true;
+
+    try {
+      const { data: sub, error: subErr } = await sb
+        .from('job_submissions')
+        .insert({ job_id: jobId, address, description: desc, notes, archived: false })
+        .select()
+        .single();
+      if (subErr) throw subErr;
+
+      const items = Object.entries(selectedItems).map(([product_id, quantity_used]) => ({
+        submission_id: sub.id,
+        product_id,
+        quantity_used,
+      }));
+      const { error: itemErr } = await sb.from('submission_items').insert(items);
+      if (itemErr) throw itemErr;
+
+      showToast('✓ Job submitted successfully');
+      // Reset form
+      document.getElementById('p-job-id').value = '';
+      document.getElementById('p-address').value = '';
+      document.getElementById('p-description').value = '';
+      document.getElementById('p-notes').value = '';
+      selectedItems = {};
+      renderItemPicker();
+    } catch (err) {
+      console.error(err);
+      showToast('Error submitting — please try again');
+    } finally {
+      btn.textContent = 'Submit Job';
+      btn.disabled = false;
+    }
+  });
+
+  /* ════════════════════════════════
+     ADMIN — LOAD TABS
+  ════════════════════════════════ */
+  async function loadAdminTab(tab) {
+    if (tab === 'restock')     await loadRestock();
+    if (tab === 'submissions') await loadSubmissions();
+    if (tab === 'products')    renderProductsList();
+  }
+
+  async function loadRestock() {
+    const { data: subs } = await sb
+      .from('job_submissions')
+      .select('id')
+      .eq('archived', false);
+    if (!subs?.length) {
+      document.getElementById('stat-jobs').textContent  = '0';
+      document.getElementById('stat-items').textContent = '0';
+      document.getElementById('restock-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Nothing to restock</div>';
+      document.getElementById('archive-all-btn').style.display = 'none';
+      return;
+    }
+
+    const subIds = subs.map(s => s.id);
+    document.getElementById('stat-jobs').textContent = subIds.length;
+
+    const { data: items } = await sb
+      .from('submission_items')
+      .select('product_id, quantity_used')
+      .in('submission_id', subIds);
+
+    // Aggregate usage
+    const usage = {};
+    (items || []).forEach(({ product_id, quantity_used }) => {
+      usage[product_id] = (usage[product_id] || 0) + quantity_used;
+    });
+
+    const needing = products.filter(p => usage[p.id]);
+    document.getElementById('stat-items').textContent = needing.length;
+
+    if (!needing.length) {
+      document.getElementById('restock-list').innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Nothing to restock</div>';
+      document.getElementById('archive-all-btn').style.display = 'none';
+      return;
+    }
+
+    // Group by category
+    const byCategory = {};
+    needing.forEach(p => {
+      if (!byCategory[p.category]) byCategory[p.category] = [];
+      byCategory[p.category].push(p);
+    });
+
+    document.getElementById('restock-list').innerHTML = Object.entries(byCategory).map(([cat, items]) => `
+      <div class="category-pill">${esc(cat)}</div>
+      ${items.map(p => {
+        const used    = usage[p.id] || 0;
+        const deficit = used;
+        return `
+        <div class="restock-item">
+          <div class="restock-name">${esc(p.name)}</div>
+          <div class="restock-numbers">
+            <div class="restock-deficit">+${deficit} ${esc(p.unit || '')}</div>
+            <div class="restock-detail">${used} used · par ${p.par_level}</div>
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="margin-bottom:12px"></div>
+    `).join('');
+
+    document.getElementById('archive-all-btn').style.display = '';
+  }
+
+  async function loadSubmissions() {
+    const { data: subs } = await sb
+      .from('job_submissions')
+      .select('*')
+      .eq('archived', false)
+      .order('submitted_at', { ascending: false });
+
+    if (!subs?.length) {
+      document.getElementById('submissions-list').innerHTML =
+        '<div class="empty"><div class="empty-icon">📭</div>No active submissions</div>';
+      return;
+    }
+
+    // Load items for these subs
+    const subIds = subs.map(s => s.id);
+    const { data: allItems } = await sb
+      .from('submission_items')
+      .select('submission_id, product_id, quantity_used')
+      .in('submission_id', subIds);
+
+    const itemsBySubmission = {};
+    (allItems || []).forEach(i => {
+      if (!itemsBySubmission[i.submission_id]) itemsBySubmission[i.submission_id] = [];
+      itemsBySubmission[i.submission_id].push(i);
+    });
+
+    document.getElementById('submissions-list').innerHTML = subs.map(sub => {
+      const items  = itemsBySubmission[sub.id] || [];
+      const date   = new Date(sub.submitted_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      const tags   = items.map(i => {
+        const prod = products.find(p => p.id === i.product_id);
+        return prod ? `<span class="submission-item-tag">${esc(prod.name)} ×${i.quantity_used}</span>` : '';
+      }).join('');
+      return `
+        <div class="submission-card">
+          <div class="submission-header">
+            <div class="submission-job">${esc(sub.job_id)}</div>
+            <div class="submission-date">${date}</div>
+          </div>
+          <div class="submission-address">${esc(sub.address)}</div>
+          <div class="submission-desc">${esc(sub.description)}</div>
+          ${tags ? `<div class="submission-items-list">${tags}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  /* ════════════════════════════════
+     ARCHIVE ALL
+  ════════════════════════════════ */
+  document.getElementById('archive-all-btn').addEventListener('click', async () => {
+    if (!confirm('Mark van as restocked and archive all active jobs?')) return;
+    const { error } = await sb
+      .from('job_submissions')
+      .update({ archived: true })
+      .eq('archived', false);
+    if (error) { showToast('Error archiving — try again'); return; }
+    showToast('✓ All jobs archived — van reset');
+    loadRestock();
+  });
+
+  /* ════════════════════════════════
+     PRODUCT MANAGER
+  ════════════════════════════════ */
+  function renderProductsList() {
+    const el = document.getElementById('products-list');
+    if (!products.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>No products yet — add one above</div>';
+      return;
+    }
+    const byCategory = {};
+    products.forEach(p => {
+      if (!byCategory[p.category]) byCategory[p.category] = [];
+      byCategory[p.category].push(p);
+    });
+    el.innerHTML = Object.entries(byCategory).map(([cat, items]) => `
+      <div class="category-pill">${esc(cat)}</div>
+      ${items.map(p => `
+        <div class="product-row">
+          <div class="product-row-name">${esc(p.name)}</div>
+          <div class="product-row-meta">Par ${p.par_level} ${esc(p.unit || '')}</div>
+          <button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" data-action="edit-product" data-id="${p.id}">Edit</button>
+          <button class="btn btn-danger" style="padding:6px 10px;font-size:12px" data-action="delete-product" data-id="${p.id}">×</button>
+        </div>
+      `).join('')}
+      <div style="margin-bottom:10px"></div>
+    `).join('');
+  }
+
+  document.getElementById('products-list').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'edit-product') openProductModal(id);
+    if (btn.dataset.action === 'delete-product') deleteProduct(id);
+  });
+
+  document.getElementById('add-product-btn').addEventListener('click', () => openProductModal(null));
+
+  function openProductModal(id) {
+    editingProductId = id;
+    const modal = document.getElementById('product-modal');
+    document.getElementById('product-modal-title').textContent = id ? 'Edit Product' : 'Add Product';
+    if (id) {
+      const p = products.find(x => x.id === id);
+      document.getElementById('pm-name').value     = p.name;
+      document.getElementById('pm-category').value = p.category;
+      document.getElementById('pm-unit').value      = p.unit || '';
+      document.getElementById('pm-par').value       = p.par_level;
+    } else {
+      document.getElementById('pm-name').value = document.getElementById('pm-category').value =
+        document.getElementById('pm-unit').value = document.getElementById('pm-par').value = '';
+    }
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('pm-name').focus(), 50);
+  }
+
+  document.getElementById('pm-cancel').addEventListener('click', () => {
+    document.getElementById('product-modal').style.display = 'none';
+  });
+
+  document.getElementById('pm-save').addEventListener('click', async () => {
+    const name     = document.getElementById('pm-name').value.trim();
+    const category = document.getElementById('pm-category').value.trim();
+    const unit     = document.getElementById('pm-unit').value.trim();
+    const par      = parseInt(document.getElementById('pm-par').value);
+
+    if (!name || !category || !par) { showToast('Fill in all fields'); return; }
+
+    const payload = { name, category, unit, par_level: par, active: true };
+    let error;
+
+    if (editingProductId) {
+      ({ error } = await sb.from('van_products').update(payload).eq('id', editingProductId));
+    } else {
+      ({ error } = await sb.from('van_products').insert(payload));
+    }
+
+    if (error) { showToast('Error saving product'); console.error(error); return; }
+    showToast(editingProductId ? '✓ Product updated' : '✓ Product added');
+    document.getElementById('product-modal').style.display = 'none';
+    await loadProducts();
+  });
+
+  async function deleteProduct(id) {
+    if (!confirm('Remove this product from the van list?')) return;
+    const { error } = await sb.from('van_products').update({ active: false }).eq('id', id);
+    if (error) { showToast('Error removing product'); return; }
+    showToast('Product removed');
+    await loadProducts();
+  }
+
+  /* ════════════════════════════════
+     TETRIS EASTER EGG
+  ════════════════════════════════ */
+  function launchTetris() {
+    document.getElementById('tetris-overlay').classList.add('show');
+    startTetris();
+  }
+
+  document.getElementById('tetris-exit').addEventListener('click', () => {
+    document.getElementById('tetris-overlay').classList.remove('show');
+    stopTetris();
+  });
+
+  let tetrisRAF = null;
+  let tetrisState = null;
+
+  const COLS = 10, ROWS = 20, CELL = 20;
+  const COLORS = ['#38bdf8','#4ade80','#f97316','#a78bfa','#f472b6','#facc15','#34d399'];
+
+  const PIECES = [
+    [[1,1,1,1]],
+    [[1,1],[1,1]],
+    [[0,1,0],[1,1,1]],
+    [[1,0,0],[1,1,1]],
+    [[0,0,1],[1,1,1]],
+    [[1,1,0],[0,1,1]],
+    [[0,1,1],[1,1,0]],
+  ];
+
+  function newPiece() {
+    const idx    = Math.floor(Math.random() * PIECES.length);
+    return { shape: PIECES[idx], color: COLORS[idx], x: 3, y: 0 };
+  }
+
+  function collides(board, piece, ox=0, oy=0) {
+    return piece.shape.some((row, r) =>
+      row.some((v, c) => {
+        if (!v) return false;
+        const nx = piece.x + c + ox;
+        const ny = piece.y + r + oy;
+        return nx < 0 || nx >= COLS || ny >= ROWS || (ny >= 0 && board[ny][nx]);
+      })
+    );
+  }
+
+  function placePiece(board, piece) {
+    piece.shape.forEach((row, r) =>
+      row.forEach((v, c) => {
+        if (v && piece.y + r >= 0) board[piece.y + r][piece.x + c] = piece.color;
+      })
+    );
+  }
+
+  function clearLines(board) {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r].every(Boolean)) {
+        board.splice(r, 1);
+        board.unshift(Array(COLS).fill(0));
+        cleared++;
+        r++;
+      }
+    }
+    return cleared;
+  }
+
+  function startTetris() {
+    const canvas = document.getElementById('tetris-canvas');
+    canvas.width  = COLS * CELL;
+    canvas.height = ROWS * CELL;
+    const ctx = canvas.getContext('2d');
+    const board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    let piece    = newPiece();
+    let score    = 0;
+    let lastDrop = 0;
+    let dropInterval = 600;
+    let running  = true;
+
+    tetrisState  = { board, piece, running };
+
+    function drawBoard() {
+      ctx.fillStyle = 'rgba(10,30,50,0.9)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.lineWidth = 0.5;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          ctx.strokeRect(c * CELL, r * CELL, CELL, CELL);
+        }
+      }
+
+      board.forEach((row, r) =>
+        row.forEach((color, c) => {
+          if (color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, CELL-2);
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(c*CELL+1, r*CELL+1, CELL-2, 4);
+          }
+        })
+      );
+
+      piece.shape.forEach((row, r) =>
+        row.forEach((v, c) => {
+          if (v) {
+            ctx.fillStyle = piece.color;
+            ctx.fillRect((piece.x+c)*CELL+1, (piece.y+r)*CELL+1, CELL-2, CELL-2);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fillRect((piece.x+c)*CELL+1, (piece.y+r)*CELL+1, CELL-2, 4);
+          }
+        })
+      );
+    }
+
+    function drop() {
+      if (collides(board, piece, 0, 1)) {
+        placePiece(board, piece);
+        const lines = clearLines(board);
+        score += [0,100,300,500,800][lines] || 0;
+        document.getElementById('t-score').textContent = score;
+        piece = newPiece();
+        if (collides(board, piece)) {
+          running = false;
+          ctx.fillStyle = 'rgba(10,30,50,0.75)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 18px DM Sans, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 10);
+          ctx.font = '13px DM Sans, sans-serif';
+          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillText(`Score: ${score}`, canvas.width/2, canvas.height/2 + 14);
+        }
+      } else {
+        piece.y++;
+      }
+    }
+
+    function loop(ts) {
+      if (!running) return;
+      if (ts - lastDrop > dropInterval) { drop(); lastDrop = ts; }
+      drawBoard();
+      tetrisRAF = requestAnimationFrame(loop);
+    }
+
+    tetrisRAF = requestAnimationFrame(loop);
+
+    // Mobile controls
+    const actions = {
+      't-left':  () => { if (!collides(board, piece, -1, 0)) piece.x--; },
+      't-right': () => { if (!collides(board, piece,  1, 0)) piece.x++; },
+      't-up':    () => {
+        const rotated = piece.shape[0].map((_, i) => piece.shape.map(r => r[i]).reverse());
+        const orig    = piece.shape;
+        piece.shape   = rotated;
+        if (collides(board, piece)) piece.shape = orig;
+      },
+      't-down':  () => { drop(); lastDrop = performance.now(); },
+    };
+
+    Object.entries(actions).forEach(([id, fn]) => {
+      document.getElementById(id).addEventListener('click', fn);
+    });
+
+    // Keyboard
+    function onKey(e) {
+      if (!running) return;
+      if (e.key === 'ArrowLeft')  actions['t-left']();
+      if (e.key === 'ArrowRight') actions['t-right']();
+      if (e.key === 'ArrowUp')    actions['t-up']();
+      if (e.key === 'ArrowDown')  actions['t-down']();
+    }
+    document.addEventListener('keydown', onKey);
+    tetrisState.cleanup = () => document.removeEventListener('keydown', onKey);
+  }
+
+  function stopTetris() {
+    if (tetrisRAF) { cancelAnimationFrame(tetrisRAF); tetrisRAF = null; }
+    if (tetrisState?.cleanup) tetrisState.cleanup();
+    tetrisState = null;
+  }
+
+  /* ════════════════════════════════
+     UTILS
+  ════════════════════════════════ */
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ════════════════════════════════
+     INIT
+  ════════════════════════════════ */
+  loadProducts();
+
+})();
+</script>
+</body>
+</html>
