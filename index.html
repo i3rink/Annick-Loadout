@@ -288,7 +288,37 @@
       border-color: rgba(74,222,128,0.3);
     }
 
-    /* ── Category pill ── */
+    /* ── Search bar ── */
+    .picker-search-wrap {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .picker-search-icon {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    .picker-search {
+      width: 100%;
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px 10px 36px;
+      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: var(--transition);
+      -webkit-appearance: none;
+    }
+    .picker-search::placeholder { color: var(--text-muted); }
+    .picker-search:focus { border-color: var(--accent); }
+
+    /* ── Category pill (used in admin/restock) ── */
     .category-pill {
       display: inline-block;
       padding: 3px 10px;
@@ -302,9 +332,51 @@
       margin-bottom: 10px;
     }
 
+    /* ── Collapsible category header ── */
+    .cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--frost);
+      border: 1px solid var(--frost-border);
+      cursor: pointer;
+      margin-bottom: 4px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: var(--transition);
+    }
+    .cat-header:hover { background: var(--frost-hover); }
+    .cat-header.has-selected { border-color: var(--accent); }
+    .cat-header-left { display: flex; align-items: center; gap: 8px; }
+    .cat-header-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .cat-header-count { font-size: 11px; color: var(--text-muted); }
+    .cat-header-right { display: flex; align-items: center; gap: 6px; }
+    .cat-selected-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-dim);
+      color: var(--accent);
+      display: none;
+    }
+    .cat-header.has-selected .cat-selected-badge { display: inline-block; }
+    .cat-chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.2s ease; }
+    .cat-chevron.open { transform: rotate(180deg); }
+    .cat-items { display: none; margin-bottom: 8px; padding-left: 0; }
+    .cat-items.open { display: block; }
+
     /* ── Item picker ── */
     .item-group {
-      margin-bottom: 18px;
+      margin-bottom: 10px;
     }
 
     .item-row {
@@ -957,7 +1029,10 @@
 
       <div class="card">
         <div class="card-title">Materials Used</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">Tap items you used on this job and enter quantities.</div>
+        <div class="picker-search-wrap">
+          <span class="picker-search-icon">🔍</span>
+          <input type="text" class="picker-search" id="picker-search" placeholder="Search materials…" autocomplete="off" />
+        </div>
         <div id="item-picker">
           <div class="empty"><div class="empty-icon">⏳</div>Loading products…</div>
         </div>
@@ -1021,7 +1096,7 @@
   /* ── Config ── */
   const SUPABASE_URL = 'https://otqqkrqpzqwdgkigocdx.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cXFrcnFwenF3ZGdraWdvY2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTIzNjQsImV4cCI6MjA5NjgyODM2NH0.6D-KNkyzyucCtWTBi7fLgg8Wl_vRoE-Z8ynWR45o3Jo';
-  const ADMIN_PIN    = '1872'; // 
+  const ADMIN_PIN    = '1234'; // ← Change this
 
   /* ── Supabase ── */
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1260,36 +1335,82 @@
     renderProductsList();
   }
 
+  let openCategories = new Set();
+  let searchQuery = '';
+
   function renderItemPicker() {
     const el = document.getElementById('item-picker');
     if (!products.length) {
       el.innerHTML = '<div class="empty"><div class="empty-icon">📦</div>No products set up yet</div>';
       return;
     }
+
+    const q = searchQuery.toLowerCase().trim();
+    const filtered = q ? products.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)) : products;
+
+    if (!filtered.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>No items match your search</div>';
+      return;
+    }
+
     const byCategory = {};
-    products.forEach(p => {
+    filtered.forEach(p => {
       if (!byCategory[p.category]) byCategory[p.category] = [];
       byCategory[p.category].push(p);
     });
-    el.innerHTML = Object.entries(byCategory).map(([cat, items]) => `
-      <div class="item-group">
-        <div class="category-pill">${esc(cat)}</div>
-        ${items.map(item => `
-          <div class="item-row" data-action="toggle-item" data-id="${item.id}">
-            <div class="item-check" id="chk-${item.id}"></div>
-            <div class="item-name">${esc(item.name)}</div>
-            <div class="item-qty-wrap" id="qty-wrap-${item.id}" style="display:none">
-              <input type="number" class="item-qty-input" id="qty-${item.id}" min="1" value="1"
-                data-action="set-qty" data-id="${item.id}" />
-              <span class="item-unit">${esc(item.unit || '')}</span>
+
+    const isSearching = q.length > 0;
+
+    el.innerHTML = Object.entries(byCategory).map(([cat, items]) => {
+      const selectedInCat = items.filter(i => selectedItems[i.id]).length;
+      const isOpen = isSearching || openCategories.has(cat);
+      return `
+        <div class="item-group">
+          <div class="cat-header ${selectedInCat ? 'has-selected' : ''}" data-action="toggle-cat" data-cat="${esc(cat)}">
+            <div class="cat-header-left">
+              <span class="cat-header-name">${esc(cat)}</span>
+              <span class="cat-header-count">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="cat-header-right">
+              ${selectedInCat ? `<span class="cat-selected-badge">${selectedInCat} selected</span>` : ''}
+              <span class="cat-chevron ${isOpen ? 'open' : ''}">▼</span>
             </div>
           </div>
-        `).join('')}
-      </div>
-    `).join('');
+          <div class="cat-items ${isOpen ? 'open' : ''}" id="cat-items-${esc(cat).replace(/\s+/g,'-')}">
+            ${items.map(item => `
+              <div class="item-row ${selectedItems[item.id] ? 'selected' : ''}" data-action="toggle-item" data-id="${item.id}">
+                <div class="item-check" id="chk-${item.id}">${selectedItems[item.id] ? '✓' : ''}</div>
+                <div class="item-name">${esc(item.name)}</div>
+                <div class="item-qty-wrap" id="qty-wrap-${item.id}" style="display:${selectedItems[item.id] ? 'flex' : 'none'}">
+                  <input type="number" class="item-qty-input" id="qty-${item.id}" min="1" value="${selectedItems[item.id] || 1}"
+                    data-action="set-qty" data-id="${item.id}" />
+                  <span class="item-unit">${esc(item.unit || '')}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }).join('');
   }
 
+  // Search input
+  document.getElementById('picker-search').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    renderItemPicker();
+  });
+
   document.getElementById('item-picker').addEventListener('click', e => {
+    // Toggle category
+    const catHeader = e.target.closest('[data-action="toggle-cat"]');
+    if (catHeader) {
+      const cat = catHeader.dataset.cat;
+      if (openCategories.has(cat)) openCategories.delete(cat);
+      else openCategories.add(cat);
+      renderItemPicker();
+      return;
+    }
+
+    // Toggle item
     const row = e.target.closest('[data-action="toggle-item"]');
     if (!row) return;
     const id = row.dataset.id;
@@ -1304,6 +1425,17 @@
       document.getElementById(`chk-${id}`).textContent = '✓';
       document.getElementById(`qty-wrap-${id}`).style.display = 'flex';
       setTimeout(() => document.getElementById(`qty-${id}`)?.focus(), 50);
+    }
+    // Update category header badge without full re-render
+    const cat = products.find(p => p.id === id)?.category;
+    if (cat) {
+      const header = document.querySelector(`[data-action="toggle-cat"][data-cat="${cat}"]`);
+      if (header) {
+        const selectedInCat = products.filter(p => p.category === cat && selectedItems[p.id]).length;
+        header.classList.toggle('has-selected', selectedInCat > 0);
+        const badge = header.querySelector('.cat-selected-badge');
+        if (badge) { badge.textContent = `${selectedInCat} selected`; badge.style.display = selectedInCat ? 'inline-block' : 'none'; }
+      }
     }
   });
 
